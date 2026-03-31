@@ -9,6 +9,7 @@ import {
   Heart,
   Settings,
   BookOpen,
+  Video,
   type LucideIcon,
 } from "lucide-react";
 
@@ -29,7 +30,8 @@ export const navigation: NavSection[] = [
     label: "Overview",
     items: [
       { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { title: "New Webinar", href: "/dashboard/new", icon: Plus },
+      { title: "Webinars", href: "/dashboard/webinars", icon: Video },
+      { title: "New Webinar", href: "/dashboard/webinars/new", icon: Plus },
     ],
   },
   {

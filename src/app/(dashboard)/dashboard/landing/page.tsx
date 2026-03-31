@@ -3,16 +3,26 @@
 import React from "react";
 import type { LandingPageContent } from "@/types/artifact";
 import { ArtifactEditor } from "@/components/features/editor/artifact-editor";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-
-// TODO: Replace with real data fetching from API
-const MOCK_CONTENT: LandingPageContent | null = null;
+import { useArtifact } from "@/lib/hooks/use-artifact";
 
 export default function LandingPagePage() {
+  const { artifact, loading, save, regenerate } = useArtifact("landing_page");
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Landing Page Brief</h1>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
   const renderEditor = ({
     content,
     onChange,
@@ -226,11 +236,13 @@ export default function LandingPagePage() {
       </div>
 
       <ArtifactEditor
-        artifactId="mock-landing-page-id"
+        artifactId={artifact?.id ?? ""}
         artifactType="landing_page"
-        content={MOCK_CONTENT}
-        version={1}
-        status={MOCK_CONTENT ? "completed" : "pending"}
+        content={artifact?.content ?? null}
+        version={artifact?.version ?? 1}
+        status={artifact?.status ?? "pending"}
+        onSave={save}
+        onRegenerate={regenerate}
         renderEditor={renderEditor}
       />
     </div>

@@ -3,6 +3,7 @@ import { EVENTS } from "../../events";
 import { aiGenerate } from "@/lib/ai/gateway";
 import { getDefaultPrompt, interpolatePrompt } from "@/lib/ai/prompt-registry";
 import { contextBuilder } from "@/lib/ai/context-builder";
+import { loadWebinarContext } from "@/lib/db/queries/webinar-context";
 import { PresentationContentSchema } from "@/types/artifact";
 
 export const presentationGenerator = inngest.createFunction(
@@ -18,16 +19,7 @@ export const presentationGenerator = inngest.createFunction(
 
     // Step 1: Load webinar data and theses
     const webinarData = await step.run("load-webinar-data", async () => {
-      // TODO: Load from DB once Dev 2 builds the webinar CRUD
-      return {
-        title: "Webinar Title",
-        topic: "Webinar Topic",
-        targetAudience: "Target Audience",
-        speakerName: "Speaker Name",
-        speakerBio: "Speaker Bio",
-        date: new Date().toISOString(),
-        theses: "1. Thesis one\n2. Thesis two\n3. Thesis three",
-      };
+      return loadWebinarContext(webinarId);
     });
 
     // Step 2: Fetch relevant context via RAG

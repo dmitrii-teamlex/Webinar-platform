@@ -8,11 +8,21 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-
-// TODO: Replace with real data fetching from API
-const MOCK_CONTENT: ThankYouContent | null = null;
+import { useArtifact } from "@/lib/hooks/use-artifact";
 
 export default function ThankYouPage() {
+  const { artifact, loading, save, regenerate } = useArtifact("thank_you");
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Thank-You Page</h1>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
   const renderEditor = ({
     content,
     onChange,
@@ -157,11 +167,13 @@ export default function ThankYouPage() {
       </div>
 
       <ArtifactEditor
-        artifactId="mock-thank-you-id"
+        artifactId={artifact?.id ?? ""}
         artifactType="thank_you"
-        content={MOCK_CONTENT}
-        version={1}
-        status={MOCK_CONTENT ? "completed" : "pending"}
+        content={artifact?.content ?? null}
+        version={artifact?.version ?? 1}
+        status={artifact?.status ?? "pending"}
+        onSave={save}
+        onRegenerate={regenerate}
         renderEditor={renderEditor}
       />
     </div>

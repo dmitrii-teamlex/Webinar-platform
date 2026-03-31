@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const p = require\\(''pdf-parse''\\); console.log\\(typeof p, typeof p.default, Object.keys\\(p\\).slice\\(0,10\\)\\)\")"
+    ]
+  }
+}

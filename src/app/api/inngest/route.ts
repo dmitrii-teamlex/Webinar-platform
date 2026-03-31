@@ -1,6 +1,7 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest/client";
 import { fanOutArtifactGeneration } from "@/lib/inngest/functions/artifact-generation";
+import { ingestionWorkflow } from "@/lib/inngest/functions/ingestion";
 
 // Register all Inngest functions here.
 // Each developer appends their generator functions to this array.
@@ -8,6 +9,7 @@ export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [
     fanOutArtifactGeneration,
+    ingestionWorkflow,
     // Dev 1 generators: (append here)
     // presentationGenerator,
     // landingPageGenerator,
@@ -16,7 +18,6 @@ export const { GET, POST, PUT } = serve({
     // Dev 2 generators: (append here)
     // attendanceChainGenerator,
     // giftGenerator,
-    // ingestionWorkflow,
     // thesisGenerationWorkflow,
   ],
 });

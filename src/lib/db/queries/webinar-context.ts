@@ -1,6 +1,4 @@
-import { eq } from "drizzle-orm";
-import { getDb } from "../index";
-import { webinars, theses } from "../schema";
+import { createAdminClient } from "@/lib/supabase/server";
 
 export type WebinarContext = {
   title: string;
@@ -14,56 +12,53 @@ export type WebinarContext = {
 
 /**
  * Load webinar data + approved theses formatted for prompt interpolation.
- * Falls back to stub data if DB is not connected (dev without Supabase).
+ * Uses Supabase client (works without DATABASE_URL).
+ * Falls back to stub data if webinar not found (dev mode).
  */
 export async function loadWebinarContext(webinarId: string): Promise<WebinarContext> {
   try {
-    const db = getDb();
+    const supabase = createAdminClient();
 
-    const webinar = await db
-      .select()
-      .from(webinars)
-      .where(eq(webinars.id, webinarId))
-      .limit(1)
-      .then((rows) => rows[0]);
+    const { data: webinar, error: wErr } = await supabase
+      .from("webinars")
+      .select("*")
+      .eq("id", webinarId)
+      .single();
 
-    if (!webinar) {
+    if (wErr || !webinar) {
       throw new Error(`Webinar ${webinarId} not found`);
     }
 
-    const approvedTheses = await db
-      .select()
-      .from(theses)
-      .where(eq(theses.webinarId, webinarId))
-      .orderBy(theses.order);
+    const { data: thesesRows } = await supabase
+      .from("theses")
+      .select("*")
+      .eq("webinar_id", webinarId)
+      .order("order", { ascending: true });
 
-    const thesesText = approvedTheses
+    const thesesText = (thesesRows ?? [])
       .map((t, i) => `${i + 1}. ${t.title}${t.description ? `: ${t.description}` : ""}`)
       .join("\n");
 
     return {
       title: webinar.title,
       topic: webinar.topic,
-      targetAudience: webinar.targetAudience,
-      speakerName: webinar.speakerName,
-      speakerBio: webinar.speakerBio ?? "",
-      date: webinar.date.toISOString(),
+      targetAudience: webinar.target_audience,
+      speakerName: webinar.speaker_name,
+      speakerBio: webinar.speaker_bio ?? "",
+      date: webinar.date,
       theses: thesesText || "No theses available.",
     };
-  } catch (err) {
-    // Fallback for development without DB
-    if ((err as Error).message?.includes("DATABASE_URL")) {
-      console.warn("[webinar-context] No DATABASE_URL — using stub data");
-      return {
-        title: `Webinar ${webinarId.slice(0, 8)}`,
-        topic: "Topic placeholder",
-        targetAudience: "Target audience placeholder",
-        speakerName: "Speaker Name",
-        speakerBio: "Speaker bio placeholder",
-        date: new Date().toISOString(),
-        theses: "1. Thesis one\n2. Thesis two\n3. Thesis three",
-      };
-    }
-    throw err;
+  } catch {
+    // Fallback for development
+    console.warn("[webinar-context] Using stub data");
+    return {
+      title: `Webinar ${webinarId.slice(0, 8)}`,
+      topic: "Topic placeholder",
+      targetAudience: "Target audience placeholder",
+      speakerName: "Speaker Name",
+      speakerBio: "Speaker bio placeholder",
+      date: new Date().toISOString(),
+      theses: "1. Thesis one\n2. Thesis two\n3. Thesis three",
+    };
   }
 }

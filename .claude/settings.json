@@ -3,7 +3,11 @@
     "allow": [
       "Bash(node -e \"const p = require\\(''pdf-parse''\\); console.log\\(typeof p, typeof p.default, Object.keys\\(p\\).slice\\(0,10\\)\\)\")",
       "Bash(git fetch:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(git checkout:*)",
+      "Bash(git status:*)",
+      "Bash(ls src/app/\\\\\\(dashboard\\\\\\)/dashboard/attendance/page.tsx src/app/\\\\\\(dashboard\\\\\\)/dashboard/gifts/page.tsx src/app/\\\\\\(dashboard\\\\\\)/dashboard/theses/page.tsx)",
+      "Bash(git push:*)"
     ],
     "additionalDirectories": [
       "/Users/khramtsova/Webinar-platform/src/app/api/webinars/[id]"

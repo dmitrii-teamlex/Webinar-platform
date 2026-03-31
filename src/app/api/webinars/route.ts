@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CreateWebinarSchema } from "@/types/webinar";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("api.webinars");
 
 // In-memory store (replace with DB when connected)
 const webinars: Map<string, Record<string, unknown>> = new Map();
@@ -21,6 +24,7 @@ export async function POST(request: NextRequest) {
 
   const parsed = CreateWebinarSchema.safeParse(body);
   if (!parsed.success) {
+    log.warn(`Validation failed`, { issues: parsed.error.issues });
     return NextResponse.json(
       { error: "Validation failed", details: parsed.error.issues },
       { status: 400 }
@@ -39,6 +43,8 @@ export async function POST(request: NextRequest) {
   };
 
   webinars.set(id, webinar);
+
+  log.info(`Webinar created`, { id, title: parsed.data.title });
 
   // TODO: Send inngest event "webinar/created"
   // await inngest.send({ name: "webinar/created", data: { webinarId: id } });

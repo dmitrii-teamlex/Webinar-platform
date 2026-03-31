@@ -8,6 +8,9 @@ import {
   interpolatePrompt,
 } from "@/lib/ai/prompt-registry";
 import { AttendanceChainContentSchema } from "@/types/artifact";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("generator.attendance");
 
 /**
  * Attendance Chain Generator.
@@ -40,7 +43,7 @@ export const attendanceChainGenerator = inngest.createFunction(
     // Step 1: Fetch webinar + theses + artifact (for promptId override)
     const { webinar, theses, promptId } = await step.run("fetch-data", async () => {
       // TODO: Replace with DB queries
-      console.log(`[AttendanceChain] Fetching data for webinar ${webinarId}`);
+      log.debug(`Fetching data`, { webinarId });
       return {
         webinar: {
           title: "Stub Webinar",
@@ -115,7 +118,7 @@ export const attendanceChainGenerator = inngest.createFunction(
       // Validate against schema
       const result = AttendanceChainContentSchema.safeParse(parsed);
       if (!result.success) {
-        console.error("[AttendanceChain] Schema validation failed:", result.error);
+        log.warn(`Schema validation failed`, { artifactId, error: String(result.error) });
         // Save raw content anyway — user can fix via editor
       }
 
@@ -124,7 +127,7 @@ export const attendanceChainGenerator = inngest.createFunction(
       //   .set({ content: parsed, status: "completed", version: 1, updatedAt: new Date() })
       //   .where(eq(schema.artifacts.id, artifactId));
 
-      console.log(`[AttendanceChain] Artifact ${artifactId} generated`);
+      log.info(`Artifact generated`, { artifactId, webinarId });
       return parsed;
     });
 

@@ -8,6 +8,9 @@ import {
   interpolatePrompt,
 } from "@/lib/ai/prompt-registry";
 import { GiftContentSchema } from "@/types/artifact";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("generator.gift");
 
 /**
  * Gift Generator.
@@ -37,7 +40,7 @@ export const giftGenerator = inngest.createFunction(
     // Step 1: Fetch webinar + theses
     const { webinar, theses, promptId } = await step.run("fetch-data", async () => {
       // TODO: Replace with DB queries
-      console.log(`[Gift] Fetching data for webinar ${webinarId}`);
+      log.debug(`Fetching data`, { webinarId });
       return {
         webinar: {
           title: "Stub Webinar",
@@ -109,7 +112,7 @@ export const giftGenerator = inngest.createFunction(
 
       const result = GiftContentSchema.safeParse(parsed);
       if (!result.success) {
-        console.error("[Gift] Schema validation failed:", result.error);
+        log.warn(`Schema validation failed`, { artifactId, error: String(result.error) });
       }
 
       // TODO: Update artifact in DB
@@ -117,7 +120,7 @@ export const giftGenerator = inngest.createFunction(
       //   .set({ content: parsed, status: "completed", version: 1, updatedAt: new Date() })
       //   .where(eq(schema.artifacts.id, artifactId));
 
-      console.log(`[Gift] Artifact ${artifactId} generated`);
+      log.info(`Artifact generated`, { artifactId, webinarId });
       return parsed;
     });
 

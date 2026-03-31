@@ -2,6 +2,9 @@ import { inngest } from "../client";
 import { EVENTS } from "../events";
 import { aiGenerate } from "@/lib/ai/gateway";
 import { contextBuilder } from "@/lib/ai/context-builder";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("inngest.thesis");
 
 /**
  * Thesis generation workflow — triggered after all sources are ingested.
@@ -26,7 +29,7 @@ export const thesisGenerationWorkflow = inngest.createFunction(
       // const webinar = await db.query.webinars.findFirst({
       //   where: eq(schema.webinars.id, webinarId),
       // });
-      console.log(`[Thesis] Fetching webinar ${webinarId}`);
+      log.debug(`Fetching webinar`, { webinarId });
       return {
         id: webinarId,
         title: "Stub Webinar",
@@ -84,7 +87,7 @@ Generate thesis ideas for this webinar.`,
           parsed = [parsed];
         }
       } catch {
-        console.error("[Thesis] Failed to parse AI response:", thesesRaw);
+        log.error(`Failed to parse AI response`, { raw: thesesRaw.slice(0, 500) });
         parsed = [
           {
             title: "Default Thesis",
@@ -108,7 +111,7 @@ Generate thesis ideas for this webinar.`,
         //   approved: false,
         // });
 
-        console.log(`[Thesis] Created: ${parsed[i].title}`);
+        log.debug(`Thesis created`, { title: parsed[i].title, order: i });
       }
 
       return ids;
@@ -120,7 +123,7 @@ Generate thesis ideas for this webinar.`,
       // await db.update(schema.webinars)
       //   .set({ status: "theses_ready", updatedAt: new Date() })
       //   .where(eq(schema.webinars.id, webinarId));
-      console.log(`[Thesis] Webinar ${webinarId} → theses_ready`);
+      log.info(`Webinar status updated`, { webinarId, status: "theses_ready" });
     });
 
     // Step 6: Fire theses.generated event

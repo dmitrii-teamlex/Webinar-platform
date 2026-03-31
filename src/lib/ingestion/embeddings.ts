@@ -4,6 +4,9 @@
  */
 
 import { chunkText, type Chunk, type ChunkOptions } from "./chunking";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ingestion.embeddings");
 
 export type EmbeddingResult = {
   chunkIndex: number;
@@ -20,9 +23,17 @@ export async function generateEmbeddings(
 ): Promise<EmbeddingResult[]> {
   const chunks = chunkText(text, chunkOptions);
 
-  if (chunks.length === 0) return [];
+  if (chunks.length === 0) {
+    log.debug(`No chunks to embed`, { textLength: text.length });
+    return [];
+  }
+
+  log.info(`Generating embeddings`, { chunksCount: chunks.length, textLength: text.length });
+  const start = Date.now();
 
   const embeddings = await embedBatch(chunks.map((c) => c.text));
+
+  log.info(`Embeddings generated`, { chunksCount: chunks.length, durationMs: Date.now() - start });
 
   return chunks.map((chunk, i) => ({
     chunkIndex: chunk.index,
@@ -86,7 +97,5 @@ export async function storeEmbeddings(
   //   }))
   // );
 
-  console.log(
-    `[Embeddings] Stored ${results.length} chunks for source ${sourceId} (webinar ${webinarId})`
-  );
+  log.info(`Embeddings stored`, { webinarId, sourceId, chunksCount: results.length });
 }

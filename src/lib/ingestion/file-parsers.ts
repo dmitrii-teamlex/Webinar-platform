@@ -5,6 +5,9 @@
 import { PDFParse, type TextResult } from "pdf-parse";
 import { parse as csvParse } from "csv-parse/sync";
 import * as XLSX from "xlsx";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ingestion.file");
 
 export type ParsedFile = {
   fileName: string;
@@ -21,18 +24,42 @@ export async function parseFile(
 ): Promise<ParsedFile> {
   const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
 
-  switch (ext) {
+  log.info(`Parsing file`, { fileName, ext, sizeBytes: buffer.length });
+  const start = Date.now();
+
+  try {
+    let result: ParsedFile;
+    switch (ext) {
     case "pdf":
-      return parsePdf(buffer, fileName);
+      result = await parsePdf(buffer, fileName); break;
     case "csv":
-      return parseCsv(buffer, fileName);
+      result = parseCsv(buffer, fileName); break;
     case "xlsx":
     case "xls":
-      return parseXlsx(buffer, fileName);
+      result = parseXlsx(buffer, fileName); break;
     case "txt":
-      return parseTxt(buffer, fileName);
+      result = parseTxt(buffer, fileName); break;
     default:
       throw new Error(`Unsupported file type: .${ext}`);
+    }
+
+    log.info(`File parsed`, {
+      fileName,
+      ext,
+      durationMs: Date.now() - start,
+      textLength: result.text.length,
+      pageCount: result.pageCount,
+    });
+
+    return result;
+  } catch (error) {
+    log.error(`File parse failed`, {
+      fileName,
+      ext,
+      durationMs: Date.now() - start,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
   }
 }
 

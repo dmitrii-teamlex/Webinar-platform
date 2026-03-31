@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseFile } from "@/lib/ingestion/file-parsers";
 import { generateEmbeddings } from "@/lib/ingestion/embeddings";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("api.knowledge-base");
 
 // In-memory store (replace with DB)
 type KBFile = {
@@ -46,8 +49,8 @@ export async function POST(request: NextRequest) {
   };
 
   kbStore.set(id, entry);
+  log.info(`Processing KB file`, { id, fileName: file.name, sizeBytes: file.size });
 
-  // Process synchronously for now (move to Inngest for production)
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
     const parsed = await parseFile(buffer, file.name);
@@ -69,10 +72,11 @@ export async function POST(request: NextRequest) {
     entry.chunksCount = embeddings.length;
     entry.status = "completed";
     kbStore.set(id, entry);
+    log.info(`KB file processed`, { id, fileName: file.name, chunksCount: embeddings.length, textLength: parsed.text.length });
   } catch (e) {
     entry.status = "failed";
     kbStore.set(id, entry);
-    console.error(`[KB] Failed to process ${file.name}:`, e);
+    log.error(`KB file processing failed`, { id, fileName: file.name, error: e instanceof Error ? e.message : String(e) });
   }
 
   return NextResponse.json({ file: entry }, { status: 201 });

@@ -3,6 +3,10 @@
  * Falls back to basic fetch + HTML text extraction if Perplexity is unavailable.
  */
 
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ingestion.url");
+
 export type ParsedUrl = {
   url: string;
   title: string;
@@ -16,12 +20,34 @@ export type ParsedUrl = {
  */
 export async function parseUrl(url: string): Promise<ParsedUrl> {
   const apiKey = process.env.PERPLEXITY_API_KEY;
+  const method = apiKey ? "perplexity" : "fetch";
 
-  if (apiKey) {
-    return parseWithPerplexity(url, apiKey);
+  log.info(`Parsing URL`, { url, method });
+  const start = Date.now();
+
+  try {
+    const result = apiKey
+      ? await parseWithPerplexity(url, apiKey)
+      : await parseWithFetch(url);
+
+    log.info(`URL parsed`, {
+      url,
+      method,
+      durationMs: Date.now() - start,
+      textLength: result.text.length,
+      title: result.title,
+    });
+
+    return result;
+  } catch (error) {
+    log.error(`URL parse failed`, {
+      url,
+      method,
+      durationMs: Date.now() - start,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
   }
-
-  return parseWithFetch(url);
 }
 
 async function parseWithPerplexity(

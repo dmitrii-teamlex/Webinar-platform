@@ -5,6 +5,9 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ai");
 
 export type AIProvider = "anthropic" | "openai";
 
@@ -62,11 +65,39 @@ export async function aiGenerate(
 
   const provider = options.provider ?? detectProvider(model);
 
-  if (provider === "anthropic") {
-    return generateWithAnthropic({ model, messages, maxTokens, temperature, responseFormat });
-  }
+  log.info(`Generating with ${provider}/${model}`, {
+    provider,
+    model,
+    messagesCount: messages.length,
+    maxTokens,
+    temperature,
+  });
 
-  return generateWithOpenAI({ model, messages, maxTokens, temperature, responseFormat });
+  const start = Date.now();
+
+  try {
+    const result = provider === "anthropic"
+      ? await generateWithAnthropic({ model, messages, maxTokens, temperature, responseFormat })
+      : await generateWithOpenAI({ model, messages, maxTokens, temperature, responseFormat });
+
+    log.info(`Generation completed`, {
+      provider,
+      model,
+      durationMs: Date.now() - start,
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+    });
+
+    return result;
+  } catch (error) {
+    log.error(`Generation failed`, {
+      provider,
+      model,
+      durationMs: Date.now() - start,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 }
 
 // ── Lazy SDK clients ──

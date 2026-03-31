@@ -10,6 +10,7 @@ import {
   Settings,
   BookOpen,
   Video,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -49,6 +50,7 @@ export const navigation: NavSection[] = [
     label: "System",
     items: [
       { title: "Knowledge Base", href: "/dashboard/knowledge-base", icon: BookOpen },
+      { title: "Logs", href: "/dashboard/logs", icon: ScrollText },
       { title: "Settings", href: "/dashboard/settings", icon: Settings },
     ],
   },

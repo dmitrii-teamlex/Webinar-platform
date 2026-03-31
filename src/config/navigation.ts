@@ -48,7 +48,7 @@ export const navigation: NavSection[] = [
   {
     label: "System",
     items: [
-      { title: "Knowledge Base", href: "/dashboard/knowledge", icon: BookOpen },
+      { title: "Knowledge Base", href: "/dashboard/knowledge-base", icon: BookOpen },
       { title: "Settings", href: "/dashboard/settings", icon: Settings },
     ],
   },

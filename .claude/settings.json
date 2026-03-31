@@ -2,6 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(node -e \"const p = require\\(''pdf-parse''\\); console.log\\(typeof p, typeof p.default, Object.keys\\(p\\).slice\\(0,10\\)\\)\")"
+    ],
+    "additionalDirectories": [
+      "/Users/khramtsova/Webinar-platform/src/app/api/webinars/[id]"
     ]
   }
 }

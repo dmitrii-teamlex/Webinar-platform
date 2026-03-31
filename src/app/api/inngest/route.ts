@@ -6,6 +6,8 @@ import { thesisGenerationWorkflow } from "@/lib/inngest/functions/thesis-generat
 import { presentationGenerator } from "@/lib/inngest/functions/generators/presentation";
 import { landingPageGenerator } from "@/lib/inngest/functions/generators/landing-page";
 import { thankYouGenerator } from "@/lib/inngest/functions/generators/thank-you";
+import { attendanceChainGenerator } from "@/lib/inngest/functions/generators/attendance-chain";
+import { giftGenerator } from "@/lib/inngest/functions/generators/gift";
 
 // Register all Inngest functions here.
 // Each developer appends their generator functions to this array.
@@ -20,9 +22,8 @@ export const { GET, POST, PUT } = serve({
     landingPageGenerator,
     thankYouGenerator,
 
-    // Dev 2 generators: (append here)
-    // attendanceChainGenerator,
-    // giftGenerator,
-    // thesisGenerationWorkflow,
+    // Dev 2 generators:
+    attendanceChainGenerator,
+    giftGenerator,
   ],
 });

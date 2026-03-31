@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { PromptEditor } from "@/components/features/prompt-editor";
+import type { ArtifactType } from "@/types/artifact";
 import {
   CheckCircle2,
   Circle,
@@ -195,6 +197,19 @@ export default function ThesesPage() {
           </Button>
         </div>
       </div>
+
+      {/* Prompt customization — user edits before approval */}
+      <PromptEditor
+        artifactTypes={
+          [
+            "presentation",
+            "landing_page",
+            "thank_you",
+            "attendance_chain",
+            "gift",
+          ] as ArtifactType[]
+        }
+      />
 
       {/* Theses list */}
       {theses.length === 0 ? (

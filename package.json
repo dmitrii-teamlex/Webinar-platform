@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/dmitrii-teamlex/Webinar-platform#readme",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.81.0",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
@@ -40,7 +41,9 @@
     "inngest": "^4.1.0",
     "lucide-react": "^1.7.0",
     "next": "^16.2.1",
+    "openai": "^6.33.0",
     "pdf-parse": "^2.4.5",
+    "postgres": "^3.4.8",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "tailwind-merge": "^3.5.0",

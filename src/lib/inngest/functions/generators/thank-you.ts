@@ -2,6 +2,7 @@ import { inngest } from "../../client";
 import { EVENTS } from "../../events";
 import { aiGenerate } from "@/lib/ai/gateway";
 import { getDefaultPrompt, interpolatePrompt } from "@/lib/ai/prompt-registry";
+import { loadWebinarContext } from "@/lib/db/queries/webinar-context";
 import { ThankYouContentSchema } from "@/types/artifact";
 
 export const thankYouGenerator = inngest.createFunction(
@@ -16,14 +17,7 @@ export const thankYouGenerator = inngest.createFunction(
     if (artifactType !== "thank_you") return;
 
     const webinarData = await step.run("load-webinar-data", async () => {
-      // TODO: Load from DB
-      return {
-        title: "Webinar Title",
-        topic: "Webinar Topic",
-        speakerName: "Speaker Name",
-        date: new Date().toISOString(),
-        theses: "1. Thesis one\n2. Thesis two\n3. Thesis three",
-      };
+      return loadWebinarContext(webinarId);
     });
 
     const prompt = await step.run("build-prompt", async () => {

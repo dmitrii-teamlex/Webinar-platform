@@ -3,6 +3,7 @@ import { EVENTS } from "../../events";
 import { aiGenerate } from "@/lib/ai/gateway";
 import { getDefaultPrompt, interpolatePrompt } from "@/lib/ai/prompt-registry";
 import { contextBuilder } from "@/lib/ai/context-builder";
+import { loadWebinarContext } from "@/lib/db/queries/webinar-context";
 import { LandingPageContentSchema } from "@/types/artifact";
 
 export const landingPageGenerator = inngest.createFunction(
@@ -17,16 +18,7 @@ export const landingPageGenerator = inngest.createFunction(
     if (artifactType !== "landing_page") return;
 
     const webinarData = await step.run("load-webinar-data", async () => {
-      // TODO: Load from DB
-      return {
-        title: "Webinar Title",
-        topic: "Webinar Topic",
-        targetAudience: "Target Audience",
-        speakerName: "Speaker Name",
-        speakerBio: "Speaker Bio",
-        date: new Date().toISOString(),
-        theses: "1. Thesis one\n2. Thesis two\n3. Thesis three",
-      };
+      return loadWebinarContext(webinarId);
     });
 
     const context = await step.run("fetch-context", async () => {

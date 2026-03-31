@@ -172,11 +172,22 @@ function SectionView({
 
 // ── Main Presentation Page ────────────────────────────────────
 
-// TODO: Replace with real data fetching from API
-const MOCK_CONTENT: PresentationContent | null = null;
+import { useArtifact } from "@/lib/hooks/use-artifact";
 
 export default function PresentationPage() {
   const [activeSection, setActiveSection] = useState<string>("intro");
+  const { artifact, loading, save, regenerate } = useArtifact("presentation");
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Presentation Brief</h1>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const renderEditor = ({
     content,
@@ -266,11 +277,13 @@ export default function PresentationPage() {
       </div>
 
       <ArtifactEditor
-        artifactId="mock-presentation-id"
+        artifactId={artifact?.id ?? ""}
         artifactType="presentation"
-        content={MOCK_CONTENT}
-        version={1}
-        status={MOCK_CONTENT ? "completed" : "pending"}
+        content={artifact?.content ?? null}
+        version={artifact?.version ?? 1}
+        status={artifact?.status ?? "pending"}
+        onSave={save}
+        onRegenerate={regenerate}
         renderEditor={renderEditor}
       />
     </div>

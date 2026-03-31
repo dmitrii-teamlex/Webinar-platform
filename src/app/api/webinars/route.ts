@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CreateWebinarSchema } from "@/types/webinar";
-
-// In-memory store (replace with DB when connected)
-const webinars: Map<string, Record<string, unknown>> = new Map();
+import { createAdminClient } from "@/lib/supabase/server";
 
 /** GET /api/webinars — List all webinars */
 export async function GET() {
-  const list = Array.from(webinars.values()).sort(
-    (a, b) =>
-      new Date(b.createdAt as string).getTime() -
-      new Date(a.createdAt as string).getTime()
-  );
+  const supabase = createAdminClient();
 
-  return NextResponse.json({ webinars: list });
+  const { data, error } = await supabase
+    .from("webinars")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ webinars: data });
 }
 
 /** POST /api/webinars — Create a new webinar */
@@ -27,24 +30,25 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
+  const supabase = createAdminClient();
 
-  const webinar = {
-    id,
-    ...parsed.data,
-    status: "draft" as const,
-    createdAt: now,
-    updatedAt: now,
-  };
+  const { data: webinar, error } = await supabase
+    .from("webinars")
+    .insert({
+      title: parsed.data.title,
+      topic: parsed.data.topic,
+      date: parsed.data.date,
+      target_audience: parsed.data.targetAudience ?? "",
+      speaker_name: parsed.data.speakerName ?? "",
+      speaker_bio: parsed.data.speakerBio ?? null,
+      status: "draft",
+    })
+    .select()
+    .single();
 
-  webinars.set(id, webinar);
-
-  // TODO: Send inngest event "webinar/created"
-  // await inngest.send({ name: "webinar/created", data: { webinarId: id } });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   return NextResponse.json({ webinar }, { status: 201 });
 }
-
-// Export store for use by sub-routes (sources, theses, etc.)
-export { webinars as webinarStore };

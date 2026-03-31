@@ -25,30 +25,30 @@ export const API_KEY_GROUPS: ApiKeyGroup[] = [
   {
     id: "anthropic",
     label: "Anthropic (Claude)",
-    description: "Used for content generation — presentations, landing pages, attendance chains, gifts",
+    description: "Primary AI provider for content generation. Required if not using OpenAI",
     icon: "brain",
     fields: [
       {
         key: "ANTHROPIC_API_KEY",
         label: "API Key",
         placeholder: "sk-ant-...",
-        required: true,
-        helpText: "Get your key at console.anthropic.com",
+        required: false,
+        helpText: "Get your key at console.anthropic.com. Required if OpenAI key is not set",
       },
     ],
   },
   {
     id: "openai",
     label: "OpenAI",
-    description: "Used for text embeddings (text-embedding-3-small) in the RAG pipeline",
+    description: "Alternative AI provider + embeddings. Required if not using Anthropic",
     icon: "sparkles",
     fields: [
       {
         key: "OPENAI_API_KEY",
         label: "API Key",
         placeholder: "sk-...",
-        required: true,
-        helpText: "Get your key at platform.openai.com",
+        required: false,
+        helpText: "Get your key at platform.openai.com. Required if Anthropic key is not set",
       },
     ],
   },

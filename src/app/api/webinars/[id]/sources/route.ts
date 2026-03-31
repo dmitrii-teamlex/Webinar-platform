@@ -1,16 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 type Params = { params: Promise<{ id: string }> };
-
-// In-memory source store (replace with DB)
-const sourcesStore: Map<string, Record<string, unknown>[]> = new Map();
 
 /** GET /api/webinars/:id/sources — List sources for a webinar */
 export async function GET(_request: NextRequest, { params }: Params) {
   const { id } = await params;
-  const sources = sourcesStore.get(id) ?? [];
+  const supabase = createAdminClient();
 
-  return NextResponse.json({ sources });
+  const { data: sources, error } = await supabase
+    .from("sources")
+    .select("*")
+    .eq("webinar_id", id)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ sources: sources ?? [] });
 }
 
 /** POST /api/webinars/:id/sources — Add a source to a webinar */
@@ -26,35 +34,33 @@ export async function POST(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "type is required" }, { status: 400 });
   }
 
-  const sourceId = crypto.randomUUID();
-  const now = new Date().toISOString();
+  const supabase = createAdminClient();
 
-  const source: Record<string, unknown> = {
-    id: sourceId,
-    webinarId,
+  const record: Record<string, unknown> = {
+    webinar_id: webinarId,
     type,
     status: "pending",
-    createdAt: now,
   };
 
   if (type === "url") {
     if (!url) {
       return NextResponse.json({ error: "url is required for URL sources" }, { status: 400 });
     }
-    source.url = url;
+    record.url = url;
   } else if (file) {
-    source.fileName = file.name;
+    record.file_name = file.name;
     // TODO: Upload file to Supabase Storage
-    // const { path } = await uploadFile(STORAGE_BUCKETS.SOURCES, `${webinarId}/${sourceId}/${file.name}`, file);
-    // source.storagePath = path;
   }
 
-  const existing = sourcesStore.get(webinarId) ?? [];
-  existing.push(source);
-  sourcesStore.set(webinarId, existing);
+  const { data: source, error } = await supabase
+    .from("sources")
+    .insert(record)
+    .select()
+    .single();
 
-  // TODO: Send inngest event "webinar/source.added"
-  // await inngest.send({ name: "webinar/source.added", data: { webinarId, sourceId } });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   return NextResponse.json({ source }, { status: 201 });
 }
@@ -68,11 +74,13 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "sourceId is required" }, { status: 400 });
   }
 
-  const existing = sourcesStore.get(webinarId) ?? [];
-  const filtered = existing.filter((s) => s.id !== sourceId);
-  sourcesStore.set(webinarId, filtered);
+  const supabase = createAdminClient();
+
+  await supabase
+    .from("sources")
+    .delete()
+    .eq("id", sourceId)
+    .eq("webinar_id", webinarId);
 
   return NextResponse.json({ deleted: true });
 }
-
-export { sourcesStore };

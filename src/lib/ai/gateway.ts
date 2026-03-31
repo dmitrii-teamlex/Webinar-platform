@@ -44,19 +44,38 @@ export type AIGenerateResult = {
  * Detect provider from model name if not explicitly set.
  */
 function detectProvider(model: string): AIProvider {
-  if (model.startsWith("claude") || model.startsWith("claude-")) return "anthropic";
+  if (model.startsWith("claude")) return "anthropic";
   return "openai";
 }
 
 /**
+ * Returns the available provider based on which API keys are set.
+ * Anthropic is preferred if both are available.
+ */
+function getAvailableProvider(): { provider: AIProvider; model: string } {
+  const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+  const hasOpenAI = !!process.env.OPENAI_API_KEY;
+
+  if (hasAnthropic) return { provider: "anthropic", model: "claude-sonnet-4-20250514" };
+  if (hasOpenAI) return { provider: "openai", model: "gpt-4o" };
+
+  throw new Error(
+    "No AI provider configured. Set either ANTHROPIC_API_KEY or OPENAI_API_KEY in your environment variables."
+  );
+}
+
+/**
  * Generate text using the configured AI provider.
- * Defaults to Anthropic Claude Sonnet.
+ * Auto-detects provider from API keys if not specified.
+ * Anthropic (Claude) is preferred when both keys are present.
  */
 export async function aiGenerate(
   options: AIGenerateOptions
 ): Promise<AIGenerateResult> {
+  const available = getAvailableProvider();
+
   const {
-    model = "claude-sonnet-4-20250514",
+    model = available.model,
     messages,
     maxTokens = 4096,
     temperature = 0.7,
@@ -76,6 +95,16 @@ export async function aiGenerate(
   const start = Date.now();
 
   try {
+    if (provider === "anthropic") {
+      if (!process.env.ANTHROPIC_API_KEY) {
+        throw new Error("ANTHROPIC_API_KEY is required for Claude models. Set it in Settings → API Keys.");
+      }
+    } else {
+      if (!process.env.OPENAI_API_KEY) {
+        throw new Error("OPENAI_API_KEY is required for OpenAI models. Set it in Settings → API Keys.");
+      }
+    }
+
     const result = provider === "anthropic"
       ? await generateWithAnthropic({ model, messages, maxTokens, temperature, responseFormat })
       : await generateWithOpenAI({ model, messages, maxTokens, temperature, responseFormat });

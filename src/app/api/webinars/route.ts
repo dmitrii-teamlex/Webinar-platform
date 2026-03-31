@@ -1,21 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CreateWebinarSchema } from "@/types/webinar";
+import { createAdminClient } from "@/lib/supabase/server";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("api.webinars");
 
-// In-memory store (replace with DB when connected)
-const webinars: Map<string, Record<string, unknown>> = new Map();
-
 /** GET /api/webinars — List all webinars */
 export async function GET() {
-  const list = Array.from(webinars.values()).sort(
-    (a, b) =>
-      new Date(b.createdAt as string).getTime() -
-      new Date(a.createdAt as string).getTime()
-  );
+  const supabase = createAdminClient();
 
-  return NextResponse.json({ webinars: list });
+  const { data, error } = await supabase
+    .from("webinars")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    log.error(`Failed to list webinars`, { error: error.message });
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ webinars: data });
 }
 
 /** POST /api/webinars — Create a new webinar */
@@ -31,26 +35,28 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
+  const supabase = createAdminClient();
 
-  const webinar = {
-    id,
-    ...parsed.data,
-    status: "draft" as const,
-    createdAt: now,
-    updatedAt: now,
-  };
+  const { data: webinar, error } = await supabase
+    .from("webinars")
+    .insert({
+      title: parsed.data.title,
+      topic: parsed.data.topic,
+      date: parsed.data.date,
+      target_audience: parsed.data.targetAudience ?? "",
+      speaker_name: parsed.data.speakerName ?? "",
+      speaker_bio: parsed.data.speakerBio ?? null,
+      status: "draft",
+    })
+    .select()
+    .single();
 
-  webinars.set(id, webinar);
+  if (error) {
+    log.error(`Failed to create webinar`, { error: error.message });
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
-  log.info(`Webinar created`, { id, title: parsed.data.title });
-
-  // TODO: Send inngest event "webinar/created"
-  // await inngest.send({ name: "webinar/created", data: { webinarId: id } });
+  log.info(`Webinar created`, { id: webinar.id, title: parsed.data.title });
 
   return NextResponse.json({ webinar }, { status: 201 });
 }
-
-// Export store for use by sub-routes (sources, theses, etc.)
-export { webinars as webinarStore };

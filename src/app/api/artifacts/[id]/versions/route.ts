@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 type Params = { params: Promise<{ id: string }> };
 
 /** GET /api/artifacts/:id/versions — List all versions of an artifact */
 export async function GET(_request: NextRequest, { params }: Params) {
   const { id } = await params;
+  const supabase = createAdminClient();
 
-  // TODO: Fetch versions from DB ordered by version desc
-  // const versions = await db.query.artifactVersions.findMany({
-  //   where: eq(artifactVersions.artifactId, id),
-  //   orderBy: desc(artifactVersions.version),
-  // });
+  const { data: versions, error } = await supabase
+    .from("artifact_versions")
+    .select("*")
+    .eq("artifact_id", id)
+    .order("version", { ascending: false });
 
-  return NextResponse.json({
-    artifactId: id,
-    versions: [],
-  });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ artifactId: id, versions: versions ?? [] });
 }

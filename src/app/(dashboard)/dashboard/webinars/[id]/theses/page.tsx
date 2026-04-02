@@ -3,13 +3,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { PromptEditor } from "@/components/features/prompt-editor";
-import type { ArtifactType } from "@/types/artifact";
 import {
   CheckCircle2,
   Circle,
@@ -36,6 +34,7 @@ export default function ThesesPage() {
   const router = useRouter();
   const [theses, setTheses] = useState<Thesis[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -50,6 +49,25 @@ export default function ThesesPage() {
   useEffect(() => {
     fetchTheses().finally(() => setLoading(false));
   }, [fetchTheses]);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const res = await fetch(`/api/webinars/${webinarId}/theses/generate`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        console.error("Generation failed:", data.error);
+        return;
+      }
+      await fetchTheses();
+    } catch (e) {
+      console.error("Generation error:", e);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const toggleApproval = async (thesisId: string, current: boolean) => {
     await fetch(`/api/webinars/${webinarId}/theses`, {
@@ -155,69 +173,82 @@ export default function ThesesPage() {
           <ArrowLeft className="size-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">Theses Review</h1>
+          <h1 className="text-3xl font-bold">Theses</h1>
           <p className="text-muted-foreground">
-            Review, edit, and approve thesis ideas before generation
+            Key points attendees will learn — approve to unlock artifact generation
           </p>
         </div>
       </div>
 
-      {/* Status bar */}
+      {/* Generate + Status bar */}
       <div className="flex items-center justify-between rounded-lg border px-4 py-3">
         <div className="flex items-center gap-4 text-sm">
-          <span>
-            <strong>{theses.length}</strong> theses total
-          </span>
-          <Separator orientation="vertical" className="h-4" />
-          <span className="text-green-600">
-            <strong>{approvedCount}</strong> approved
-          </span>
+          {theses.length > 0 ? (
+            <>
+              <span>
+                <strong>{theses.length}</strong> theses
+              </span>
+              <Separator orientation="vertical" className="h-4" />
+              <span className="text-green-600">
+                <strong>{approvedCount}</strong> approved
+              </span>
+            </>
+          ) : (
+            <span className="text-muted-foreground">
+              No theses yet — generate from webinar topic
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={approveAll}
-            disabled={approving || theses.length === 0}
+            onClick={handleGenerate}
+            disabled={generating}
           >
-            <CheckCheck className="size-3.5" />
-            Approve All
-          </Button>
-          <Button
-            size="sm"
-            onClick={approveSelected}
-            disabled={approving || approvedCount === 0}
-          >
-            {approving ? (
+            {generating ? (
               <Loader2 className="size-3.5 animate-spin" />
             ) : (
               <Sparkles className="size-3.5" />
             )}
-            Approve & Generate ({approvedCount})
+            {generating ? "Generating..." : "Generate Theses"}
           </Button>
+          {theses.length > 0 && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={approveAll}
+                disabled={approving || theses.length === 0}
+              >
+                <CheckCheck className="size-3.5" />
+                Approve All
+              </Button>
+              <Button
+                size="sm"
+                onClick={approveSelected}
+                disabled={approving || approvedCount === 0}
+              >
+                {approving ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="size-3.5" />
+                )}
+                Confirm ({approvedCount})
+              </Button>
+            </>
+          )}
         </div>
       </div>
-
-      {/* Prompt customization — user edits before approval */}
-      <PromptEditor
-        artifactTypes={
-          [
-            "presentation",
-            "landing_page",
-            "thank_you",
-            "attendance_chain",
-            "gift",
-          ] as ArtifactType[]
-        }
-      />
 
       {/* Theses list */}
       {theses.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
+            <Sparkles className="size-8 mx-auto mb-3 text-muted-foreground" />
             <p className="text-muted-foreground">
-              No theses generated yet. Theses will appear here after source
-              materials are processed.
+              Click &ldquo;Generate Theses&rdquo; to create thesis proposals based on your webinar
+              topic. You can customize the generation prompt in Settings → Prompts.
             </p>
           </CardContent>
         </Card>
@@ -232,7 +263,6 @@ export default function ThesesPage() {
               >
                 <CardContent className="pt-4 pb-4">
                   {editingId === thesis.id ? (
-                    /* Edit mode */
                     <div className="space-y-3">
                       <Input
                         value={editTitle}
@@ -261,9 +291,7 @@ export default function ThesesPage() {
                       </div>
                     </div>
                   ) : (
-                    /* View mode */
                     <div className="flex items-start gap-3">
-                      {/* Approve toggle */}
                       <button
                         onClick={() => toggleApproval(thesis.id, thesis.approved)}
                         className="mt-0.5 shrink-0"
@@ -275,7 +303,6 @@ export default function ThesesPage() {
                         )}
                       </button>
 
-                      {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <h3 className="font-medium">{thesis.title}</h3>
@@ -292,7 +319,6 @@ export default function ThesesPage() {
                         )}
                       </div>
 
-                      {/* Actions */}
                       <div className="flex items-center gap-1 shrink-0">
                         <Button
                           variant="ghost"

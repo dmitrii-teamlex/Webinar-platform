@@ -3,13 +3,25 @@ import { EVENTS } from "../../events";
 import { aiGenerate } from "@/lib/ai/gateway";
 import { getDefaultPrompt, interpolatePrompt } from "@/lib/ai/prompt-registry";
 import { loadWebinarContext } from "@/lib/db/queries/webinar-context";
-import { ThankYouContentSchema } from "@/types/artifact";
+import { createAdminClient } from "@/lib/supabase/server";
+
+function extractJson(text: string): string {
+  const fenced = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+  if (fenced) return fenced[1].trim();
+  return text.trim();
+}
 
 export const thankYouGenerator = inngest.createFunction(
   {
     id: "generator-thank-you",
     name: "Thank-You Page Generator",
-    retries: 2,
+    retries: 1,
+    onFailure: async ({ event }) => {
+      const artifactId = event.data.event?.data?.artifactId;
+      if (!artifactId) return;
+      const supabase = createAdminClient();
+      await supabase.from("artifacts").update({ status: "failed", error: "Generation failed", updated_at: new Date().toISOString() }).eq("id", artifactId);
+    },
     triggers: [{ event: EVENTS.ARTIFACT_GENERATION_REQUESTED }],
   },
   async ({ event, step }) => {
@@ -36,32 +48,35 @@ export const thankYouGenerator = inngest.createFunction(
     });
 
     const result = await step.run("generate-thank-you", async () => {
-      const response = await aiGenerate({
+      return aiGenerate({
         messages: [
           { role: "system", content: prompt.systemPrompt + "\n\nRespond with valid JSON matching: { headline: string, body: string, nextSteps: { step: number, title: string, description: string }[], giftDeliveryMessage?: string }" },
           { role: "user", content: prompt.userPrompt },
         ],
         maxTokens: 2048,
         temperature: 0.7,
-        responseFormat: "json",
       });
-
-      return response;
     });
 
-    const content = await step.run("validate-content", async () => {
-      try {
-        const parsed = JSON.parse(result.content);
-        const validated = ThankYouContentSchema.parse(parsed);
-        return { type: "thank_you" as const, data: validated };
-      } catch {
-        throw new Error("Failed to parse thank-you content from AI response");
-      }
+    const content = await step.run("parse-and-save", async () => {
+      const parsed = JSON.parse(extractJson(result.content));
+      const supabase = createAdminClient();
+
+      await supabase
+        .from("artifacts")
+        .update({
+          content: parsed,
+          status: "completed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", artifactId);
+
+      return parsed;
     });
 
     await step.sendEvent("notify-complete", {
       name: EVENTS.ARTIFACT_GENERATION_COMPLETED,
-      data: { webinarId, artifactId, artifactType: "thank_you" as const },
+      data: { webinarId, artifactId, artifactType: "thank_you" },
     });
 
     return { artifactId, content, model: result.model, usage: result.usage };

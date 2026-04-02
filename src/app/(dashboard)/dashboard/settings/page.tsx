@@ -54,6 +54,7 @@ type PromptTemplate = {
 };
 
 const ARTIFACT_LABELS: Record<string, string> = {
+  theses: "Theses",
   presentation: "Presentation",
   landing_page: "Landing Page",
   thank_you: "Thank-You Page",
@@ -361,7 +362,7 @@ function PromptEditor({
 function PromptsSection() {
   const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeArtifact, setActiveArtifact] = useState("presentation");
+  const [activeArtifact, setActiveArtifact] = useState("theses");
 
   const fetchPrompts = useCallback(async () => {
     try {

@@ -2,15 +2,26 @@ import { inngest } from "../../client";
 import { EVENTS } from "../../events";
 import { aiGenerate } from "@/lib/ai/gateway";
 import { getDefaultPrompt, interpolatePrompt } from "@/lib/ai/prompt-registry";
-import { contextBuilder } from "@/lib/ai/context-builder";
 import { loadWebinarContext } from "@/lib/db/queries/webinar-context";
-import { LandingPageContentSchema } from "@/types/artifact";
+import { createAdminClient } from "@/lib/supabase/server";
+
+function extractJson(text: string): string {
+  const fenced = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+  if (fenced) return fenced[1].trim();
+  return text.trim();
+}
 
 export const landingPageGenerator = inngest.createFunction(
   {
     id: "generator-landing-page",
     name: "Landing Page Generator",
-    retries: 2,
+    retries: 1,
+    onFailure: async ({ event }) => {
+      const artifactId = event.data.event?.data?.artifactId;
+      if (!artifactId) return;
+      const supabase = createAdminClient();
+      await supabase.from("artifacts").update({ status: "failed", error: "Generation failed", updated_at: new Date().toISOString() }).eq("id", artifactId);
+    },
     triggers: [{ event: EVENTS.ARTIFACT_GENERATION_REQUESTED }],
   },
   async ({ event, step }) => {
@@ -19,15 +30,6 @@ export const landingPageGenerator = inngest.createFunction(
 
     const webinarData = await step.run("load-webinar-data", async () => {
       return loadWebinarContext(webinarId);
-    });
-
-    const context = await step.run("fetch-context", async () => {
-      const chunks = await contextBuilder.buildContext({
-        webinarId,
-        query: `landing page copy for ${webinarData.topic} webinar`,
-        maxChunks: 8,
-      });
-      return chunks.map((c) => c.text).join("\n\n");
     });
 
     const prompt = await step.run("build-prompt", async () => {
@@ -42,39 +44,42 @@ export const landingPageGenerator = inngest.createFunction(
         speakerBio: webinarData.speakerBio ?? "",
         date: webinarData.date,
         theses: webinarData.theses,
-        context: context || "No additional context available.",
+        context: "No additional context available.",
       });
 
       return { systemPrompt: template.systemPrompt, userPrompt };
     });
 
     const result = await step.run("generate-landing-page", async () => {
-      const response = await aiGenerate({
+      return aiGenerate({
         messages: [
           { role: "system", content: prompt.systemPrompt + "\n\nRespond with valid JSON matching: { headline: string, subheadline: string, bullets: string[], socialProof: { text: string, author: string }[], cta: { text: string, subtext?: string }, speakerBio: string, urgencyBlock?: string }" },
           { role: "user", content: prompt.userPrompt },
         ],
         maxTokens: 4096,
         temperature: 0.7,
-        responseFormat: "json",
       });
-
-      return response;
     });
 
-    const content = await step.run("validate-content", async () => {
-      try {
-        const parsed = JSON.parse(result.content);
-        const validated = LandingPageContentSchema.parse(parsed);
-        return { type: "landing_page" as const, data: validated };
-      } catch {
-        throw new Error("Failed to parse landing page content from AI response");
-      }
+    const content = await step.run("parse-and-save", async () => {
+      const parsed = JSON.parse(extractJson(result.content));
+      const supabase = createAdminClient();
+
+      await supabase
+        .from("artifacts")
+        .update({
+          content: parsed,
+          status: "completed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", artifactId);
+
+      return parsed;
     });
 
     await step.sendEvent("notify-complete", {
       name: EVENTS.ARTIFACT_GENERATION_COMPLETED,
-      data: { webinarId, artifactId, artifactType: "landing_page" as const },
+      data: { webinarId, artifactId, artifactType: "landing_page" },
     });
 
     return { artifactId, content, model: result.model, usage: result.usage };

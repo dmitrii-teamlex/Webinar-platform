@@ -25,6 +25,7 @@ type Props = {
 };
 
 const TYPE_LABELS: Record<ArtifactType, string> = {
+  theses: "Theses",
   presentation: "Presentation",
   landing_page: "Landing Page",
   thank_you: "Thank-You Page",

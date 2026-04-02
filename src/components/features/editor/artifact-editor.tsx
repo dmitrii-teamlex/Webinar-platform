@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, Save, History, Pencil, Eye } from "lucide-react";
+import { RefreshCw, Save, History, Pencil, Eye, Sparkles } from "lucide-react";
 
 type ArtifactEditorProps = {
   artifactId: string;
@@ -17,6 +17,7 @@ type ArtifactEditorProps = {
   status: "pending" | "generating" | "completed" | "failed";
   onSave?: (content: unknown) => void;
   onRegenerate?: () => void;
+  onGenerate?: () => void;
   /** Each artifact type provides its own editor view component */
   renderEditor?: (props: {
     content: unknown;
@@ -33,6 +34,7 @@ export function ArtifactEditor({
   status,
   onSave,
   onRegenerate,
+  onGenerate,
   renderEditor,
 }: ArtifactEditorProps) {
   const [mode, setMode] = useState<"view" | "edit">("view");
@@ -91,14 +93,20 @@ export function ArtifactEditor({
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-muted-foreground">
+          <CardTitle className="text-muted-foreground capitalize">
             {artifactType.replace("_", " ")} — Not yet generated
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            This artifact will be generated after thesis approval.
+            Generate this artifact based on your approved theses and webinar details.
           </p>
+          {onGenerate && (
+            <Button onClick={onGenerate} size="lg">
+              <Sparkles className="size-4" />
+              Generate {artifactType.replace("_", " ")}
+            </Button>
+          )}
         </CardContent>
       </Card>
     );

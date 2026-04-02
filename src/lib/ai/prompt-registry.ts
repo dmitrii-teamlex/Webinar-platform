@@ -20,6 +20,17 @@ export type PromptTemplate = {
 // ── In-memory defaults (seed data) ──────────────────────────
 
 const DEFAULT_PROMPTS: PromptTemplate[] = [
+  // Theses — generated first, all other artifacts depend on them
+  {
+    id: "default-theses",
+    artifactType: "theses",
+    name: "Default Theses Generator",
+    systemPrompt:
+      "You are an expert webinar content strategist. Generate a list of key theses (main points) that attendees will learn during the webinar. Each thesis should be a clear, specific takeaway. Return valid JSON: an array of objects with 'title' (short thesis statement) and 'description' (1-2 sentence explanation of what the attendee will learn).",
+    userPromptTemplate:
+      "Generate 7-10 key theses for a webinar titled '{{title}}' on the topic '{{topic}}'. Target audience: {{targetAudience}}. Speaker: {{speakerName}}.\n\nTheses should represent the main points and takeaways that attendees will gain from this webinar. Each thesis should be concrete and actionable.",
+    isDefault: true,
+  },
   // Dev 1 artifacts
   {
     id: "default-presentation",

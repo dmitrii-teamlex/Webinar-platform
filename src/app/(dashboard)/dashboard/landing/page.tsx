@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import type { LandingPageContent } from "@/types/artifact";
 import { ArtifactEditor } from "@/components/features/editor/artifact-editor";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,10 +8,23 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { useSearchParams } from "next/navigation";
 import { useArtifact } from "@/lib/hooks/use-artifact";
+import { ArtifactChat } from "@/components/features/editor/artifact-chat";
 
 export default function LandingPagePage() {
-  const { artifact, loading, save, regenerate } = useArtifact("landing_page");
+  return (
+    <Suspense fallback={<div className="space-y-6"><div><h1 className="text-2xl font-bold">Landing Page Brief</h1><p className="text-muted-foreground">Loading...</p></div></div>}>
+      <LandingPageInner />
+    </Suspense>
+  );
+}
+
+function LandingPageInner() {
+  const searchParams = useSearchParams();
+  const webinarId = searchParams.get("webinarId") ?? undefined;
+  const { artifact, loading, save, regenerate, generate, refetch } =
+    useArtifact(webinarId, "landing_page");
 
   if (loading) {
     return (
@@ -243,8 +256,13 @@ export default function LandingPagePage() {
         status={artifact?.status ?? "pending"}
         onSave={save}
         onRegenerate={regenerate}
+        onGenerate={generate}
         renderEditor={renderEditor}
       />
+
+      {artifact?.status === "completed" && artifact.id && (
+        <ArtifactChat artifactId={artifact.id} onRefined={refetch} />
+      )}
     </div>
   );
 }

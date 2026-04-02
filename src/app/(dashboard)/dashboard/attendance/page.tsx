@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import type { AttendanceChainContent } from "@/types/artifact";
 import { ArtifactEditor } from "@/components/features/editor/artifact-editor";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { useSearchParams } from "next/navigation";
 import { useArtifact } from "@/lib/hooks/use-artifact";
+import { ArtifactChat } from "@/components/features/editor/artifact-chat";
 
 const STAGE_LABELS: Record<string, string> = {
   registration_confirmation: "Registration Confirmation",
@@ -25,7 +27,18 @@ const CHANNEL_COLORS: Record<string, "default" | "secondary" | "outline"> = {
 };
 
 export default function AttendanceChainPage() {
-  const { artifact, loading, save, regenerate } = useArtifact("attendance_chain");
+  return (
+    <Suspense fallback={<div className="space-y-6"><div><h1 className="text-2xl font-bold">Attendance Chain</h1><p className="text-muted-foreground">Loading...</p></div></div>}>
+      <AttendanceChainInner />
+    </Suspense>
+  );
+}
+
+function AttendanceChainInner() {
+  const searchParams = useSearchParams();
+  const webinarId = searchParams.get("webinarId") ?? undefined;
+  const { artifact, loading, save, regenerate, generate, refetch } =
+    useArtifact(webinarId, "attendance_chain");
 
   if (loading) {
     return (
@@ -178,8 +191,13 @@ export default function AttendanceChainPage() {
         status={artifact?.status ?? "pending"}
         onSave={save}
         onRegenerate={regenerate}
+        onGenerate={generate}
         renderEditor={renderEditor}
       />
+
+      {artifact?.status === "completed" && artifact.id && (
+        <ArtifactChat artifactId={artifact.id} onRefined={refetch} />
+      )}
     </div>
   );
 }

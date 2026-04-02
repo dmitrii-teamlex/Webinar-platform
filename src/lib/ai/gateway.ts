@@ -45,16 +45,18 @@ function detectProvider(model: string): AIProvider {
   return "openai";
 }
 
-/**
- * Returns the available provider based on which API keys are set.
- * Anthropic is preferred if both are available.
- */
-function getAvailableProvider(): { provider: AIProvider; model: string } {
-  const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
-  const hasOpenAI = !!process.env.OPENAI_API_KEY;
+function env(name: string): string {
+  // CLAUDE_API_KEY is used as a fallback because Turbopack inlines
+  // process.env.ANTHROPIC_API_KEY as "" due to @anthropic-ai/sdk referencing it
+  if (name === "ANTHROPIC_API_KEY") {
+    return process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || "";
+  }
+  return process.env[name] ?? "";
+}
 
-  if (hasAnthropic) return { provider: "anthropic", model: "claude-sonnet-4-20250514" };
-  if (hasOpenAI) return { provider: "openai", model: "gpt-4o" };
+function getAvailableProvider(): { provider: AIProvider; model: string } {
+  if (env("ANTHROPIC_API_KEY")) return { provider: "anthropic", model: "claude-sonnet-4-20250514" };
+  if (env("OPENAI_API_KEY")) return { provider: "openai", model: "gpt-4o" };
 
   throw new Error(
     "No AI provider configured. Set either ANTHROPIC_API_KEY or OPENAI_API_KEY in your environment variables."
@@ -82,30 +84,18 @@ export async function aiGenerate(
   const provider = options.provider ?? detectProvider(model);
 
   if (provider === "anthropic") {
-    if (!process.env.ANTHROPIC_API_KEY) {
+    const apiKey = env("ANTHROPIC_API_KEY");
+    if (!apiKey) {
       throw new Error("ANTHROPIC_API_KEY is required for Claude models. Set it in Settings → API Keys.");
     }
-    return generateWithAnthropic({ model, messages, maxTokens, temperature, responseFormat });
+    return generateWithAnthropic({ model, messages, maxTokens, temperature, responseFormat, apiKey });
   }
 
-  if (!process.env.OPENAI_API_KEY) {
+  const apiKey = env("OPENAI_API_KEY");
+  if (!apiKey) {
     throw new Error("OPENAI_API_KEY is required for OpenAI models. Set it in Settings → API Keys.");
   }
-  return generateWithOpenAI({ model, messages, maxTokens, temperature, responseFormat });
-}
-
-// ── Lazy SDK clients ──
-
-let _anthropic: Anthropic | null = null;
-function getAnthropic() {
-  if (!_anthropic) _anthropic = new Anthropic();
-  return _anthropic;
-}
-
-let _openai: OpenAI | null = null;
-function getOpenAI() {
-  if (!_openai) _openai = new OpenAI();
-  return _openai;
+  return generateWithOpenAI({ model, messages, maxTokens, temperature, responseFormat, apiKey });
 }
 
 // ── Anthropic implementation ──
@@ -116,19 +106,25 @@ async function generateWithAnthropic(params: {
   maxTokens: number;
   temperature: number;
   responseFormat?: "text" | "json";
+  apiKey: string;
 }): Promise<AIGenerateResult> {
+  const client = new Anthropic({ apiKey: params.apiKey });
+
   const systemMessage = params.messages.find((m) => m.role === "system");
   const nonSystemMessages = params.messages
     .filter((m) => m.role !== "system")
     .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-  const response = await getAnthropic().messages.create({
-    model: params.model,
-    max_tokens: params.maxTokens,
-    temperature: params.temperature,
-    system: systemMessage?.content,
-    messages: nonSystemMessages,
-  });
+  const response = await client.messages.create(
+    {
+      model: params.model,
+      max_tokens: params.maxTokens,
+      temperature: params.temperature,
+      system: systemMessage?.content,
+      messages: nonSystemMessages,
+    },
+    { timeout: 120_000 }
+  );
 
   const textBlock = response.content.find((b) => b.type === "text");
   const content = textBlock?.type === "text" ? textBlock.text : "";
@@ -151,8 +147,11 @@ async function generateWithOpenAI(params: {
   maxTokens: number;
   temperature: number;
   responseFormat?: "text" | "json";
+  apiKey: string;
 }): Promise<AIGenerateResult> {
-  const response = await getOpenAI().chat.completions.create({
+  const client = new OpenAI({ apiKey: params.apiKey });
+
+  const response = await client.chat.completions.create({
     model: params.model,
     messages: params.messages.map((m) => ({
       role: m.role,

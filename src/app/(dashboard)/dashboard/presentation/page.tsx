@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import type { PresentationContent, Slide } from "@/types/artifact";
 import { ArtifactEditor } from "@/components/features/editor/artifact-editor";
 import { Badge } from "@/components/ui/badge";
@@ -172,11 +172,24 @@ function SectionView({
 
 // ── Main Presentation Page ────────────────────────────────────
 
+import { useSearchParams } from "next/navigation";
 import { useArtifact } from "@/lib/hooks/use-artifact";
+import { ArtifactChat } from "@/components/features/editor/artifact-chat";
 
 export default function PresentationPage() {
+  return (
+    <Suspense fallback={<div className="space-y-6"><div><h1 className="text-2xl font-bold">Presentation Brief</h1><p className="text-muted-foreground">Loading...</p></div></div>}>
+      <PresentationPageInner />
+    </Suspense>
+  );
+}
+
+function PresentationPageInner() {
+  const searchParams = useSearchParams();
+  const webinarId = searchParams.get("webinarId") ?? undefined;
   const [activeSection, setActiveSection] = useState<string>("intro");
-  const { artifact, loading, save, regenerate } = useArtifact("presentation");
+  const { artifact, loading, save, regenerate, generate, refetch } =
+    useArtifact(webinarId, "presentation");
 
   if (loading) {
     return (
@@ -284,8 +297,13 @@ export default function PresentationPage() {
         status={artifact?.status ?? "pending"}
         onSave={save}
         onRegenerate={regenerate}
+        onGenerate={generate}
         renderEditor={renderEditor}
       />
+
+      {artifact?.status === "completed" && artifact.id && (
+        <ArtifactChat artifactId={artifact.id} onRefined={refetch} />
+      )}
     </div>
   );
 }

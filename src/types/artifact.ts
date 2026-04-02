@@ -3,6 +3,7 @@ import { z } from "zod/v4";
 // ── Artifact Type Enum ──────────────────────────────────────
 
 export const ArtifactTypeSchema = z.enum([
+  "theses",
   "presentation",
   "landing_page",
   "thank_you",

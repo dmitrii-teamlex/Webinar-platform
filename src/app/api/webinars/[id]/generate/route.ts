@@ -81,7 +81,28 @@ export async function POST(request: NextRequest, { params }: Params) {
     },
   }));
 
-  await inngest.send(events);
+  try {
+    await inngest.send(events);
+  } catch (err) {
+    // Rollback: delete artifact records and restore webinar status
+    for (const a of artifacts) {
+      await supabase.from("artifacts").delete().eq("id", a.id);
+    }
+    await supabase
+      .from("webinars")
+      .update({ status: webinar.status, updated_at: new Date().toISOString() })
+      .eq("id", id);
+
+    const isConnectionRefused =
+      err instanceof Error &&
+      (err as NodeJS.ErrnoException).cause &&
+      ((err as NodeJS.ErrnoException).cause as NodeJS.ErrnoException)?.code === "ECONNREFUSED";
+
+    const message = isConnectionRefused
+      ? "Inngest dev server is not running. Start it with: npx inngest-cli@latest dev"
+      : "Failed to queue generation";
+    return NextResponse.json({ error: message }, { status: 503 });
+  }
 
   return NextResponse.json({
     message: `Generation started for ${artifacts.length} artifacts`,

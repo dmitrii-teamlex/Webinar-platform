@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -15,8 +21,8 @@ import {
   FileText,
   ArrowRight,
   Loader2,
-  Sparkles,
   CheckCircle2,
+  Lock,
   Presentation,
   LayoutTemplate,
   Heart,
@@ -43,63 +49,86 @@ type Source = {
   status: string;
 };
 
-type GeneratedArtifact = {
+type Thesis = {
+  id: string;
+  title: string;
+  approved: boolean;
+};
+
+type ArtifactSummary = {
   id: string;
   type: string;
   status: string;
 };
 
-const ARTIFACT_INFO: Record<string, { label: string; icon: React.ElementType; href: string }> = {
-  presentation: { label: "Presentation", icon: Presentation, href: "/dashboard/presentation" },
-  landing_page: { label: "Landing Page", icon: LayoutTemplate, href: "/dashboard/landing" },
-  thank_you: { label: "Thank-You Page", icon: Heart, href: "/dashboard/thank-you" },
-  attendance_chain: { label: "Attendance Chain", icon: Mail, href: "/dashboard/attendance-chain" },
-  gift: { label: "Gifts", icon: Gift, href: "/dashboard/gifts" },
-};
+const ARTIFACT_CARDS: {
+  type: string;
+  label: string;
+  icon: React.ElementType;
+  href: string;
+  description: string;
+}[] = [
+  {
+    type: "presentation",
+    label: "Presentation",
+    icon: Presentation,
+    href: "/dashboard/presentation",
+    description: "~90 slides: intro, content, sales",
+  },
+  {
+    type: "landing_page",
+    label: "Landing Page",
+    icon: LayoutTemplate,
+    href: "/dashboard/landing",
+    description: "Registration page copy",
+  },
+  {
+    type: "thank_you",
+    label: "Thank-You Page",
+    icon: Heart,
+    href: "/dashboard/thank-you",
+    description: "Post-registration confirmation",
+  },
+  {
+    type: "attendance_chain",
+    label: "Attendance Chain",
+    icon: Mail,
+    href: "/dashboard/attendance",
+    description: "Multi-stage messaging flow",
+  },
+  {
+    type: "gift",
+    label: "Gifts",
+    icon: Gift,
+    href: "/dashboard/gifts",
+    description: "Attendance incentives",
+  },
+];
 
 export default function WebinarDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [webinar, setWebinar] = useState<WebinarDetail | null>(null);
   const [sources, setSources] = useState<Source[]>([]);
+  const [theses, setTheses] = useState<Thesis[]>([]);
+  const [artifacts, setArtifacts] = useState<ArtifactSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [generatedArtifacts, setGeneratedArtifacts] = useState<GeneratedArtifact[]>([]);
 
   useEffect(() => {
     Promise.all([
       fetch(`/api/webinars/${id}`).then((r) => r.json()),
       fetch(`/api/webinars/${id}/sources`).then((r) => r.json()),
+      fetch(`/api/webinars/${id}/theses`).then((r) => r.json()),
+      fetch(`/api/webinars/${id}/artifacts`).then((r) => r.json()),
     ])
-      .then(([wData, sData]) => {
+      .then(([wData, sData, tData, aData]) => {
         setWebinar(wData.webinar ?? null);
         setSources(sData.sources ?? []);
+        setTheses(tData.theses ?? []);
+        setArtifacts(aData.artifacts ?? []);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [id]);
-
-  const handleGenerate = async () => {
-    setGenerating(true);
-    try {
-      const res = await fetch(`/api/webinars/${id}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setGeneratedArtifacts(data.artifacts ?? []);
-        if (webinar) {
-          setWebinar({ ...webinar, status: "generating" });
-        }
-      } else {
-        console.error("Generation failed:", data.error);
-      }
-    } catch (e) {
-      console.error("Generation error:", e);
-    } finally {
-      setGenerating(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -117,7 +146,9 @@ export default function WebinarDetailPage() {
     );
   }
 
-  const isGenerating = webinar.status === "generating" || generating;
+  const approvedTheses = theses.filter((t) => t.approved);
+  const thesesApproved = approvedTheses.length > 0;
+  const artifactsByType = new Map(artifacts.map((a) => [a.type, a]));
 
   return (
     <div className="space-y-6">
@@ -152,72 +183,146 @@ export default function WebinarDetailPage() {
 
       <Separator />
 
-      {/* Generate All Artifacts */}
-      <Card>
+      {/* Step 1: Theses (mandatory gate) */}
+      <Card className={thesesApproved ? "border-green-500/50" : "border-primary"}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="size-5" />
-            Generate Artifacts
-          </CardTitle>
-          <CardDescription>
-            Generate all marketing materials based on webinar info and configured prompts.
-            Sources are optional — the AI will use the webinar details to create content.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button
-            size="lg"
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            className="w-full"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Sparkles className="size-4" />
-                Generate All Artifacts
-              </>
-            )}
-          </Button>
-
-          {generatedArtifacts.length > 0 && (
-            <div className="space-y-2">
-              {generatedArtifacts.map((artifact) => {
-                const info = ARTIFACT_INFO[artifact.type];
-                if (!info) return null;
-                const Icon = info.icon;
-                return (
-                  <div
-                    key={artifact.id}
-                    className="flex items-center justify-between rounded-md border px-3 py-2"
-                  >
-                    <div className="flex items-center gap-2 text-sm">
-                      <Icon className="size-4 text-muted-foreground" />
-                      <span>{info.label}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={artifact.status === "completed" ? "default" : "outline"}>
-                        {artifact.status}
-                      </Badge>
-                      {artifact.status === "completed" && (
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={info.href}>
-                            View <ArrowRight className="size-3" />
-                          </Link>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className={`flex size-8 items-center justify-center rounded-full text-sm font-bold ${
+                  thesesApproved
+                    ? "bg-green-500 text-white"
+                    : "bg-primary text-primary-foreground"
+                }`}
+              >
+                1
+              </div>
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  Theses
+                  {thesesApproved && (
+                    <CheckCircle2 className="size-4 text-green-500" />
+                  )}
+                </CardTitle>
+                <CardDescription>
+                  {thesesApproved
+                    ? `${approvedTheses.length} theses approved — artifacts unlocked`
+                    : "Generate and approve theses to unlock artifact generation"}
+                </CardDescription>
+              </div>
             </div>
-          )}
-        </CardContent>
+            <Button variant={thesesApproved ? "outline" : "default"} asChild>
+              <Link href={`/dashboard/webinars/${id}/theses`}>
+                {thesesApproved ? "View Theses" : "Manage Theses"}
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          </div>
+        </CardHeader>
+        {theses.length > 0 && (
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {theses.slice(0, 5).map((t) => (
+                <Badge
+                  key={t.id}
+                  variant={t.approved ? "default" : "outline"}
+                >
+                  {t.title}
+                </Badge>
+              ))}
+              {theses.length > 5 && (
+                <Badge variant="secondary">+{theses.length - 5} more</Badge>
+              )}
+            </div>
+          </CardContent>
+        )}
       </Card>
+
+      {/* Step 2: Artifacts (unlocked after theses approval) */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <div
+            className={`flex size-8 items-center justify-center rounded-full text-sm font-bold ${
+              thesesApproved
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground"
+            }`}
+          >
+            2
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold">Artifacts</h2>
+            <p className="text-sm text-muted-foreground">
+              {thesesApproved
+                ? "Generate each artifact individually, then refine with AI chat"
+                : "Approve theses first to unlock artifact generation"}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {ARTIFACT_CARDS.map((card) => {
+            const existing = artifactsByType.get(card.type);
+            const Icon = card.icon;
+            const isLocked = !thesesApproved;
+
+            return (
+              <Card
+                key={card.type}
+                className={isLocked ? "opacity-60" : ""}
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Icon className="size-4 text-muted-foreground" />
+                      <CardTitle className="text-sm">{card.label}</CardTitle>
+                    </div>
+                    {isLocked ? (
+                      <Lock className="size-4 text-muted-foreground" />
+                    ) : existing ? (
+                      <Badge
+                        variant={
+                          existing.status === "completed"
+                            ? "default"
+                            : existing.status === "generating"
+                              ? "secondary"
+                              : "outline"
+                        }
+                      >
+                        {existing.status}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">not started</Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {card.description}
+                  </p>
+                  {isLocked ? (
+                    <Button variant="outline" size="sm" disabled className="w-full">
+                      <Lock className="size-3" />
+                      Locked
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" asChild className="w-full">
+                      <Link href={`${card.href}?webinarId=${id}`}>
+                        {existing?.status === "completed"
+                          ? "View & Edit"
+                          : existing
+                            ? "View"
+                            : "Generate"}
+                        <ArrowRight className="size-3" />
+                      </Link>
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Sources (optional) */}
       <Card>
@@ -253,7 +358,9 @@ export default function WebinarDetailPage() {
                     </Badge>
                   </div>
                   <Badge
-                    variant={source.status === "completed" ? "default" : "outline"}
+                    variant={
+                      source.status === "completed" ? "default" : "outline"
+                    }
                   >
                     {source.status}
                   </Badge>
@@ -261,24 +368,6 @@ export default function WebinarDetailPage() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Theses */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Theses</CardTitle>
-          <CardDescription>
-            Optional — define key points before generating
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline" asChild>
-            <Link href={`/dashboard/webinars/${id}/theses`}>
-              Manage Theses
-              <ArrowRight className="size-4" />
-            </Link>
-          </Button>
         </CardContent>
       </Card>
     </div>

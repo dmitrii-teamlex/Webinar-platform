@@ -3,14 +3,15 @@
   "configurations": [
     {
       "name": "webinar-platform",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["next", "dev"],
+      "runtimeExecutable": "/Users/dniarez/.nvm/versions/node/v22.20.0/bin/node",
+      "runtimeArgs": ["/Users/dniarez/.nvm/versions/node/v22.20.0/bin/npx", "next", "dev"],
+      "env": { "PATH": "/Users/dniarez/.nvm/versions/node/v22.20.0/bin:/usr/bin:/bin:/usr/sbin:/sbin" },
       "port": 3000,
       "autoPort": false
     },
     {
       "name": "inngest",
-      "runtimeExecutable": "npx",
+      "runtimeExecutable": "/Users/dniarez/.nvm/versions/node/v22.20.0/bin/npx",
       "runtimeArgs": ["inngest-cli@latest", "dev", "-u", "http://localhost:3000/api/inngest"],
       "port": 8288,
       "autoPort": false
